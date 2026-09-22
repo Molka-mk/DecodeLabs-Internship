@@ -1,0 +1,238 @@
+import random
+import base64
+import os
+
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+# CAESAR CIPHER
+
+def caesar_encrypt(text, shift):
+    result = ""
+
+    for char in text:
+        if char.isascii() and char.isalpha():
+            if char.isupper():
+                base = ord("A") 
+            else: 
+                base = ord("a")
+            result += chr((ord(char) - base + shift) % 26 + base)
+        else:
+            result += char
+
+    return result
+
+
+def caesar_decrypt(text, shift):
+    return caesar_encrypt(text, -shift)
+
+
+# VIGENERE CIPHER
+
+def validate_vigenere_key(key):
+    if not key or not key.isascii() or not key.isalpha():
+        raise ValueError("The Vigenere key must contain English letters only.")
+
+
+def vigenere_encrypt(text, key):
+    validate_vigenere_key(key)
+
+    key = key.upper()
+    result = ""
+    key_index = 0
+
+    for char in text:
+        if char.isascii() and char.isalpha():
+            if char.isupper():
+                base = ord("A") 
+            else: 
+                base = ord("a")
+            shift = ord(key[key_index % len(key)]) - ord("A")
+
+            result += chr((ord(char) - base + shift) % 26 + base)
+            key_index += 1
+        else:
+            result += char
+
+    return result
+
+
+def vigenere_decrypt(text, key):
+    validate_vigenere_key(key)
+
+    key = key.upper()
+    result = ""
+    key_index = 0
+
+    for char in text:
+        if char.isascii() and char.isalpha():
+            if char.isupper():
+                base = ord("A") 
+            else: 
+                base = ord("a")
+            shift = ord(key[key_index % len(key)]) - ord("A")
+
+            result += chr((ord(char) - base - shift) % 26 + base)
+            key_index += 1
+        else:
+            result += char
+
+    return result
+
+
+# AES-256-GCM
+
+def generate_aes_key():
+    return AESGCM.generate_key(bit_length=256)
+
+
+def aes_encrypt(text, key):
+    aesgcm = AESGCM(key)
+    nonce = os.urandom(12)
+
+    ciphertext = aesgcm.encrypt(
+        nonce,
+        text.encode("utf-8"),
+        None
+    )
+
+    return nonce, ciphertext
+
+
+def aes_decrypt(nonce, ciphertext, key):
+    aesgcm = AESGCM(key)
+
+    plaintext = aesgcm.decrypt(
+        nonce,
+        ciphertext,
+        None
+    )
+
+    return plaintext.decode("utf-8")
+
+
+# UTILITY FUNCTIONS
+
+def encode_base64(data):
+    return base64.b64encode(data).decode("ascii")
+
+
+# COMPARE ALL THREE METHODS AT THE SAME TIME
+
+def compare_all_methods(text):
+
+    print("ENCRYPTION COMPARISON:")
+
+    # Ask for the Vigenere key once.
+    while True:
+        vigenere_key = input(
+            "Enter a Vigenere key (English letters only): "
+        ).strip()
+
+        try:
+            validate_vigenere_key(vigenere_key)
+            break
+        except ValueError as error:
+            print(f"Error: {error}")
+
+    # Caesar
+    caesar_shift = random.randint(1, 25)
+    caesar_ciphertext = caesar_encrypt(text, caesar_shift)
+    caesar_plaintext = caesar_decrypt(caesar_ciphertext, caesar_shift)
+
+    # Vigenere
+    vigenere_ciphertext = vigenere_encrypt(text, vigenere_key)
+    vigenere_plaintext = vigenere_decrypt(vigenere_ciphertext,vigenere_key)
+
+    # AES
+    aes_key = generate_aes_key()
+    aes_nonce, aes_ciphertext = aes_encrypt(text, aes_key)
+    aes_plaintext = aes_decrypt(
+        aes_nonce,
+        aes_ciphertext,
+        aes_key
+    )
+
+    # Display all encryption results together.
+    print()
+    print(f"{'METHOD':<18}{'KEY':<20}ENCRYPTED TEXT")
+
+    print(
+        f"{'Caesar':<18}"
+        f"{'Shift = ' + str(caesar_shift):<20}"
+        f"{caesar_ciphertext}"
+    )
+
+    print(
+        f"{'Vigenere':<18}"
+        f"{'Key = ' + vigenere_key:<20}"
+        f"{vigenere_ciphertext}"
+    )
+
+    print(
+        f"{'AES-256-GCM':<18}"
+        f"{'256-bit key':<20}"
+        f"{encode_base64(aes_ciphertext)}"
+    )
+
+    # Display AES technical information separately because
+    # AES ciphertext is binary and is shown using Base64.
+    print()
+    print("AES DETAILS:")
+    print("AES key (Base64):   ", encode_base64(aes_key))
+    print("AES nonce (Base64): ", encode_base64(aes_nonce))
+    print("AES ciphertext is displayed using Base64.")
+
+    # Display all decryption results together.
+    print()
+    print("DECRYPTION RESULTS:")
+
+    print(f"Caesar:   {caesar_plaintext}")
+    print(f"Vigenere: {vigenere_plaintext}")
+    print(f"AES:      {aes_plaintext}")
+
+    # Verify that all methods recovered the original text.
+    print()
+    print("VERIFICATION:")
+
+    print("Caesar correct:   ", caesar_plaintext == text)
+    print("Vigenere correct: ", vigenere_plaintext == text)
+    print("AES correct:      ", aes_plaintext == text)
+
+    # Educational comparison.
+    print()
+    print("METHOD DIFFERENCES:")
+
+    print("Caesar:   one fixed shift for every letter.")
+    print("Vigenere: a repeating keyword controls the shifts.")
+    print("AES:      modern authenticated encryption using binary data.")
+
+
+# MAIN PROGRAM
+
+def main():
+    print("ENCRYPTION TECHNIQUES COMPARISON PROJECT")
+
+    text = input("Enter the text you want to encrypt: ")
+
+    if not text:
+        print("Error: Text cannot be empty.")
+        return
+
+    while True:
+        print()
+        print("MENU:")
+        print("1. Compare all three methods")
+        print("2. Exit")
+
+        choice = input("Choose an option (1-2): ").strip()
+
+        if choice == "1":
+            compare_all_methods(text)
+        elif choice == "2":
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid choice. Please enter 1 or 2.")
+
+
+main()
